@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 # coding: utf-8
 # Copyright 2016 Abram Hindle, https://github.com/tywtyw2002, and https://github.com/treedust
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -41,17 +41,17 @@ class HTTPClient(object):
         return None
 
     def get_code(self, data):
-        return None
+        return int(data.split()[1])
 
     def get_headers(self,data):
-        return None
+        return data.split("\r\n\r\n")[0]
 
     def get_body(self, data):
-        return None
-    
+        return data.split("\r\n\r\n")[1]
+
     def sendall(self, data):
         self.socket.sendall(data.encode('utf-8'))
-        
+
     def close(self):
         self.socket.close()
 
@@ -67,9 +67,70 @@ class HTTPClient(object):
                 done = not part
         return buffer.decode('utf-8')
 
+    def split_url(self, url):
+        # Credit to https://docs.python.org/3/library/urllib.parse.html
+        # Parse URL into the following components:
+        # scheme, netloc, path, params, query, fragment,
+        # username, password, hostname, and port
+        parse_results = urllib.parse.urlparse(url)
+
+        # If there is no path in this url,
+        # then assign it with "/
+        if not parse_results.path:
+            path = '/'
+        else:
+            path = parse_results.path
+            query = parse_results.query
+            fragment = parse_results.fragment
+            if query is not '':
+                path += '?' + query
+            if fragment is not '':
+                path += '#' + fragment
+
+        hostname = parse_results.hostname
+
+        scheme = parse_results.scheme
+        # Credit to https://www.godaddy.com/garage/whats-an-ssl-port-a-technical-guide-for-https/
+        if parse_results.port is None:
+            # HTTPS connections use TCP port 443. HTTP uses port 80.
+            if scheme == "https":
+                port = 443
+            elif scheme == "http":
+                port = 80
+        else:
+            port = parse_results.port
+
+        return path, hostname, port
+
+    def send_response(self, request, hostname, port):
+        # Connect to the url
+        self.connect(hostname, port)
+
+        # Send the request
+        self.sendall(request)
+
+        # Get all the data
+        data = self.recvall(self.socket)
+        self.close()
+
+        code = self.get_code(data)
+        body = self.get_body(data)
+        print(body)
+        return code, body
+
     def GET(self, url, args=None):
-        code = 500
-        body = ""
+
+        path, hostname, port = self.split_url(url)
+
+        # Credit to https://www.tutorialspoint.com/http/http_requests.htm
+        request = ('GET {0} HTTP/1.1\r\n'
+        'Host: {1}\r\n'
+        'Accept: */*\r\n'
+        'Connection: close\r\n'
+        '\r\n').format(path, hostname)
+
+        code, body = self.send_response(request, hostname, port)
+
         return HTTPResponse(code, body)
 
     def POST(self, url, args=None):
@@ -82,7 +143,7 @@ class HTTPClient(object):
             return self.POST( url, args )
         else:
             return self.GET( url, args )
-    
+
 if __name__ == "__main__":
     client = HTTPClient()
     command = "GET"
