@@ -119,23 +119,39 @@ class HTTPClient(object):
         return code, body
 
     def GET(self, url, args=None):
-
         path, hostname, port = self.split_url(url)
 
         # Credit to https://www.tutorialspoint.com/http/http_requests.htm
-        request = ('GET {0} HTTP/1.1\r\n'
-        'Host: {1}\r\n'
-        'Accept: */*\r\n'
-        'Connection: close\r\n'
-        '\r\n').format(path, hostname)
+        request = ("GET {0} HTTP/1.1\r\n"
+        "Host: {1}\r\n"
+        "Accept: */*\r\n"
+        "Connection: close\r\n"
+        "\r\n").format(path, hostname)
 
         code, body = self.send_response(request, hostname, port)
 
         return HTTPResponse(code, body)
 
     def POST(self, url, args=None):
-        code = 500
-        body = ""
+        path, hostname, port = self.split_url(url)
+
+        if args is None:
+            args = ""
+            headers = "Content-Length: 0\r\n"
+        else:
+            args = urllib.parse.urlencode(args)
+            headers = ("Content-Length: {0}\r\n"
+            "Content-Type: application/x-www-form-urlencodeds\r\n").format(str(len(args)))
+
+        # Credit to https://www.tutorialspoint.com/http/http_requests.htm
+        request = ("POST {0} HTTP/1.1\r\n"
+        "Host: {1}\r\n"
+        "Accept: */*\r\n"
+        "Connection: close\r\n"
+        "{2}\r\n{3}").format(path, hostname, headers, args)
+
+        code, body = self.send_response(request, hostname, port)
+
         return HTTPResponse(code, body)
 
     def command(self, url, command="GET", args=None):
