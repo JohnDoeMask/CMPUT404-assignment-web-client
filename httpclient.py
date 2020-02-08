@@ -90,6 +90,9 @@ class HTTPClient(object):
         hostname = parse_results.hostname
 
         scheme = parse_results.scheme
+        if not scheme:
+            scheme = "http"
+            
         # Credit to https://www.godaddy.com/garage/whats-an-ssl-port-a-technical-guide-for-https/
         if parse_results.port is None:
             # HTTPS connections use TCP port 443. HTTP uses port 80.
